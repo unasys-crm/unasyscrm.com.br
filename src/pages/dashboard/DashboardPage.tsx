@@ -3,7 +3,6 @@ import {
   Users,
   FileText,
   CheckSquare,
-  TrendingUp,
   Calendar,
   AlertCircle,
   DollarSign,
