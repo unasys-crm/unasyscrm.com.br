@@ -152,6 +152,13 @@ const LoginPage: React.FC = () => {
         setDemoUserStatus('created')
         console.log('Demo user exists but email not confirmed')
         return 'created'
+      } else if (error?.message?.includes('Email logins are disabled') || 
+                 error?.message?.includes('email_provider_disabled')) {
+        // Email authentication is disabled in Supabase
+        // User exists but email not confirmed
+        setDemoUserStatus('created')
+        console.log('Demo user exists but email not confirmed')
+        return 'created'
       } else if (error?.message?.includes('Invalid login credentials')) {
         // User doesn't exist
         setDemoUserStatus('none')
@@ -223,6 +230,13 @@ const LoginPage: React.FC = () => {
             toast.info('Usuário demo já existe. Credenciais preenchidas para login.')
             handleDemoLogin()
           }
+          return
+        } else if (signUpError.message?.includes('Email logins are disabled') || 
+                   signUpError.message?.includes('email_provider_disabled')) {
+          toast.error('❌ Autenticação por email está desabilitada no Supabase!')
+          toast.info('💡 Vá para Supabase Dashboard > Authentication > Providers')
+          toast.info('📧 Habilite o provedor "Email" para usar login com email/senha')
+          setShowTroubleshooting(true)
           return
         } else if (signUpError.message?.includes('Signup is disabled')) {
           toast.error('Cadastro está desabilitado no Supabase.')
@@ -555,6 +569,49 @@ const LoginPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* New section for email provider disabled */}
+                <div className="space-y-2">
+                  <p className="text-red-700 dark:text-red-300">
+                    <strong>⚠️ Problema Crítico:</strong> Autenticação por email desabilitada
+                  </p>
+                  <p className="text-red-700 dark:text-red-300">
+                    <strong>Solução Obrigatória:</strong> Habilitar provedor de email no Supabase
+                  </p>
+                  <div className="ml-4 space-y-1">
+                    <p className="text-red-600 dark:text-red-400">
+                      1. Acesse Supabase Dashboard > Authentication > Providers
+                    </p>
+                    <p className="text-red-600 dark:text-red-400">
+                      2. Encontre "Email" na lista de provedores
+                    </p>
+                    <p className="text-red-600 dark:text-red-400">
+                      3. Clique em "Enable" para habilitar
+                    </p>
+                    <p className="text-red-600 dark:text-red-400">
+                      4. Salve as configurações
+                    </p>
+                  </div>
+                </div>
+
+                {demoUserStatus === 'created' && (
+                  <div className="space-y-2">
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Problema:</strong> Email do usuário demo não confirmado
+                    </p>
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Solução:</strong> Escolha uma das opções abaixo:
+                    </p>
+                    <div className="ml-4 space-y-1">
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        • Opção 1: Confirmar manualmente no Supabase Dashboard
+                      </p>
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        • Opção 2: Desabilitar confirmação de email (para testes)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mt-3">
                   <Button
                     type="button"
@@ -594,6 +651,16 @@ const LoginPage: React.FC = () => {
                   <p className="mt-3"><strong>Para desabilitar confirmação de email:</strong></p>
                   <ol className="list-decimal list-inside ml-2 space-y-1">
                     <li>Acesse o Supabase Dashboard</li>
+                    <li>Vá para Authentication → Settings</li>
+                    <li>Desmarque "Confirm email"</li>
+                    <li>Clique em "Save"</li>
+                  </ol>
+                  
+                  <p className="mt-3"><strong>Para habilitar autenticação por email:</strong></p>
+                  <ol className="list-decimal list-inside ml-2 space-y-1">
+                    <li>Acesse o Supabase Dashboard</li>
+                    <li>Vá para Authentication → Providers</li>
+                    <li>Encontre "Email" e clique em "Enable"</li>
                     <li>Vá para Authentication → Settings</li>
                     <li>Desmarque "Confirm email"</li>
                     <li>Clique em "Save"</li>
@@ -652,36 +719,4 @@ const LoginPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <Link
-                to="/forgot-password"
-                className="font-medium text-primary-600 hover:text-primary-500"
-              >
-                Esqueceu sua senha?
-              </Link>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full"
-            loading={loading}
-            disabled={loading || !watchedValues.email || !watchedValues.password}
-          >
-            <LogIn className="mr-2 h-4 w-4" />
-            Entrar
-          </Button>
-        </form>
-
-        <div className="text-center">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            © 2024 UnasyCRM. Todos os direitos reservados.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default LoginPage
+          

@@ -113,7 +113,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Enhanced error message translation
       let errorMessage = 'Erro ao fazer login'
       
-      if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
+      if (error.message?.includes('Email logins are disabled') || error.message?.includes('email_provider_disabled')) {
+        errorMessage = 'Autenticação por email está desabilitada no Supabase'
+        toast.error(errorMessage)
+        toast.info('💡 Habilite o provedor "Email" em Authentication > Providers')
+        return
+      } else if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
         if (email.trim() === 'demo@unasyscrm.com.br') {
           errorMessage = 'Credenciais do usuário demo inválidas!'
           toast.error(errorMessage)
@@ -179,6 +184,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let errorMessage = 'Erro ao criar conta'
       if (error.message?.includes('User already registered')) {
         errorMessage = 'Este email já está cadastrado'
+      } else if (error.message?.includes('Email logins are disabled') || error.message?.includes('email_provider_disabled')) {
+        errorMessage = 'Autenticação por email está desabilitada no Supabase'
+        toast.error(errorMessage)
+        toast.info('💡 Habilite o provedor "Email" em Authentication > Providers')
+        throw error
       } else if (error.message?.includes('Signup is disabled')) {
         errorMessage = 'Cadastro está desabilitado no Supabase'
       } else if (error.message) {
