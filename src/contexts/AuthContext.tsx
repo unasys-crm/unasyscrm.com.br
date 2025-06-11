@@ -116,20 +116,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error.message?.includes('Email logins are disabled') || error.message?.includes('email_provider_disabled')) {
         errorMessage = 'Autenticação por email está desabilitada no Supabase'
         toast.error(errorMessage)
-        toast.info('💡 Habilite o provedor "Email" em Authentication > Providers')
+        toast('💡 Habilite o provedor "Email" em Authentication > Providers')
         return
       } else if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
         if (email.trim() === 'demo@unasyscrm.com.br') {
           errorMessage = 'Credenciais do usuário demo inválidas!'
           toast.error(errorMessage)
-          toast.info('💡 Solução: Use o botão "Criar Usuário Demo" na tela de login')
-          toast.info('📋 Ou confirme o email no Supabase Dashboard se o usuário já existe')
+          toast('💡 Solução: Use o botão "Criar Usuário Demo" na tela de login')
+          toast('📋 Ou confirme o email no Supabase Dashboard se o usuário já existe')
           // Don't throw error for demo user - let the UI handle it
           return
         } else {
           errorMessage = 'Email ou senha incorretos'
           toast.error(errorMessage)
-          toast.info('💡 Verifique suas credenciais e tente novamente')
+          toast('💡 Verifique suas credenciais e tente novamente')
           // Don't throw error for invalid credentials - let the UI handle it gracefully
           return
         }
@@ -187,7 +187,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else if (error.message?.includes('Email logins are disabled') || error.message?.includes('email_provider_disabled')) {
         errorMessage = 'Autenticação por email está desabilitada no Supabase'
         toast.error(errorMessage)
-        toast.info('💡 Habilite o provedor "Email" em Authentication > Providers')
+        toast('💡 Habilite o provedor "Email" em Authentication > Providers')
         throw error
       } else if (error.message?.includes('Signup is disabled')) {
         errorMessage = 'Cadastro está desabilitado no Supabase'
