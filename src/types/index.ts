@@ -1,5 +1,7 @@
 import { User, Session } from '@supabase/supabase-js'
 
+export { User, Session }
+
 export interface Company {
   id: string
   name: string
@@ -178,6 +180,3 @@ export interface AuthContextType {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }
-
-// Re-export Supabase types for convenience
-export type { User, Session }
