@@ -103,11 +103,15 @@ const LoginPage: React.FC = () => {
         toast.error('Erro na autenticação. Tente novamente.')
       }
     } catch (error: any) {
-      // Check for email auth disabled error
+      console.error('Login error:', error)
+      
+      // Enhanced error handling for email provider disabled
       if (error.message?.includes('Email logins are disabled') || 
-          error.message?.includes('email_provider_disabled')) {
+          error.message?.includes('email_provider_disabled') ||
+          error.code === 'email_provider_disabled') {
         setEmailAuthDisabled(true)
         setConnectionStatus('auth_disabled')
+        setDemoUserStatus('auth_disabled')
         toast.error('❌ Autenticação por email está desabilitada!')
         toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
         setShowTroubleshooting(true)
@@ -169,7 +173,8 @@ const LoginPage: React.FC = () => {
       if (error) {
         // Check for email auth disabled error first
         if (error.message?.includes('Email logins are disabled') || 
-            error.message?.includes('email_provider_disabled')) {
+            error.message?.includes('email_provider_disabled') ||
+            error.code === 'email_provider_disabled') {
           setEmailAuthDisabled(true)
           setDemoUserStatus('auth_disabled')
           setConnectionStatus('auth_disabled')
@@ -209,7 +214,8 @@ const LoginPage: React.FC = () => {
       
       // Check for email auth disabled error in catch block too
       if (error.message?.includes('Email logins are disabled') || 
-          error.message?.includes('email_provider_disabled')) {
+          error.message?.includes('email_provider_disabled') ||
+          error.code === 'email_provider_disabled') {
         setEmailAuthDisabled(true)
         setDemoUserStatus('auth_disabled')
         setConnectionStatus('auth_disabled')
@@ -273,9 +279,11 @@ const LoginPage: React.FC = () => {
         
         // Check for email auth disabled error
         if (signUpError.message?.includes('Email logins are disabled') || 
-            signUpError.message?.includes('email_provider_disabled')) {
+            signUpError.message?.includes('email_provider_disabled') ||
+            signUpError.code === 'email_provider_disabled') {
           setEmailAuthDisabled(true)
           setConnectionStatus('auth_disabled')
+          setDemoUserStatus('auth_disabled')
           toast.error('❌ Autenticação por email está desabilitada!')
           toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
           setShowTroubleshooting(true)
@@ -340,9 +348,11 @@ const LoginPage: React.FC = () => {
       
       // Check for email auth disabled error in catch block
       if (error.message?.includes('Email logins are disabled') || 
-          error.message?.includes('email_provider_disabled')) {
+          error.message?.includes('email_provider_disabled') ||
+          error.code === 'email_provider_disabled') {
         setEmailAuthDisabled(true)
         setConnectionStatus('auth_disabled')
+        setDemoUserStatus('auth_disabled')
         toast.error('❌ Autenticação por email está desabilitada!')
         toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
         setShowTroubleshooting(true)
@@ -410,6 +420,7 @@ const LoginPage: React.FC = () => {
           if (!emailEnabled) {
             setEmailAuthDisabled(true)
             setConnectionStatus('auth_disabled')
+            setDemoUserStatus('auth_disabled')
             toast.warning('Conexão OK, mas autenticação por email está desabilitada!')
             toast.info('Habilite o provedor de email no Supabase Dashboard')
             setShowTroubleshooting(true)
@@ -453,11 +464,20 @@ const LoginPage: React.FC = () => {
     }
   }
 
-  // Check demo user status on component mount
+  // Check demo user status on component mount and detect email auth status
   React.useEffect(() => {
+    const checkInitialStatus = async () => {
+      try {
+        // First test connection to detect email auth status
+        await testConnection()
+      } catch (error) {
+        console.error('Initial status check failed:', error)
+      }
+    }
+    
     // Small delay to avoid overwhelming the API
     const timer = setTimeout(() => {
-      checkDemoUserStatus()
+      checkInitialStatus()
     }, 1000)
     
     return () => clearTimeout(timer)
