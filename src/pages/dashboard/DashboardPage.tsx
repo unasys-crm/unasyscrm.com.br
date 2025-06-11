@@ -3,10 +3,7 @@ import {
   Users,
   FileText,
   CheckSquare,
-  Calendar,
-  AlertCircle,
-  DollarSign,
-  Target
+  AlertCircle
 } from 'lucide-react'
 import { useCompany } from '../../contexts/CompanyContext'
 import { supabase } from '../../lib/supabase'
