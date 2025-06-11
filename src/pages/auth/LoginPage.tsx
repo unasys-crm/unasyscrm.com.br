@@ -76,7 +76,7 @@ const LoginPage: React.FC = () => {
       
       await signIn(data.email, data.password)
       
-      // Wait a bit to ensure authentication is processed
+      // Wait a bit to ensure authentication is processed before checking session
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Verify authentication before navigating
@@ -90,7 +90,7 @@ const LoginPage: React.FC = () => {
       }
     } catch (error: any) {
       // Enhanced error handling for demo user
-      if (watchedValues.email?.trim() === 'demo@unasyscrm.com.br' && 
+      if (data.email?.trim() === 'demo@unasyscrm.com.br' && 
           error.message?.includes('Invalid login credentials')) {
         // Don't show additional error - AuthContext already handled it
         console.log('Demo user login failed - showing troubleshooting')
@@ -102,7 +102,12 @@ const LoginPage: React.FC = () => {
         }, 1000)
         return
       }
-      console.error('Login error:', error)
+      
+      // Only log and handle non-credential errors
+      if (error && !error.message?.includes('Invalid login credentials')) {
+        console.error('Login error:', error)
+        toast.error(error.message || 'Erro inesperado durante o login')
+      }
     } finally {
       setLoading(false)
     }
