@@ -88,22 +88,10 @@ const LoginPage: React.FC = () => {
   const createDemoUser = async () => {
     setCreatingDemoUser(true)
     try {
-      // First, try to sign in with demo credentials to check if user already exists
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: 'demo@unasyscrm.com.br',
-        password: 'demo123456',
-      })
-
-      if (signInData.user && !signInError) {
-        // Demo user already exists and can be logged into
-        toast.success('Usuário demo já existe! Você pode fazer login normalmente.')
-        // Auto-fill the form
-        handleDemoLogin()
-        return
-      }
-
-      // If sign-in failed, try to create the demo user
-      const { data, error } = await supabase.auth.signUp({
+      console.log('Creating demo user...')
+      
+      // First, try to sign up the demo user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: 'demo@unasyscrm.com.br',
         password: 'demo123456',
         options: {
@@ -114,20 +102,53 @@ const LoginPage: React.FC = () => {
         },
       })
 
-      if (error) {
-        if (error.message?.includes('User already registered')) {
-          toast.success('Usuário demo já existe! Você pode fazer login normalmente.')
+      if (signUpError) {
+        if (signUpError.message?.includes('User already registered')) {
+          // User already exists, try to sign in to verify credentials work
+          console.log('Demo user already exists, testing login...')
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: 'demo@unasyscrm.com.br',
+            password: 'demo123456',
+          })
+
+          if (signInError) {
+            console.error('Demo user exists but login failed:', signInError)
+            toast.error('Usuário demo existe mas as credenciais não funcionam. Entre em contato com o suporte.')
+            return
+          }
+
+          // Sign out immediately after testing
+          await supabase.auth.signOut()
+          
+          toast.success('Usuário demo já existe e está funcionando! Use as credenciais para fazer login.')
+          handleDemoLogin()
+          return
         } else {
-          throw error
+          throw signUpError
         }
-      } else {
-        toast.success('Usuário demo criado com sucesso! Você pode fazer login agora.')
-        // Auto-fill the form
-        handleDemoLogin()
       }
+
+      if (signUpData.user) {
+        console.log('Demo user created successfully:', signUpData.user.email)
+        toast.success('Usuário demo criado com sucesso! Use as credenciais para fazer login.')
+        handleDemoLogin()
+      } else {
+        throw new Error('Falha ao criar usuário demo - nenhum usuário retornado')
+      }
+
     } catch (error: any) {
       console.error('Error creating demo user:', error)
-      toast.error(`Erro ao criar usuário demo: ${error.message}`)
+      let errorMessage = 'Erro ao criar usuário demo'
+      
+      if (error.message?.includes('signup is disabled')) {
+        errorMessage = 'Cadastro está desabilitado no Supabase. Entre em contato com o administrador.'
+      } else if (error.message?.includes('Email rate limit exceeded')) {
+        errorMessage = 'Limite de tentativas excedido. Aguarde alguns minutos.'
+      } else if (error.message) {
+        errorMessage = `Erro: ${error.message}`
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setCreatingDemoUser(false)
     }
@@ -182,7 +203,7 @@ const LoginPage: React.FC = () => {
                 Demonstração do Sistema
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Use as credenciais abaixo para testar o sistema:
+                Para testar o sistema, primeiro crie o usuário demo e depois faça login:
               </p>
             </div>
           </div>
@@ -195,21 +216,21 @@ const LoginPage: React.FC = () => {
           <div className="grid grid-cols-1 gap-2 mt-3">
             <Button
               type="button"
-              variant="secondary"
-              onClick={handleDemoLogin}
-              className="w-full text-sm"
-            >
-              Preencher Credenciais Demo
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
+              variant="primary"
               onClick={createDemoUser}
               loading={creatingDemoUser}
               className="w-full text-sm"
             >
               <UserPlus className="mr-2 h-4 w-4" />
-              Criar Usuário Demo
+              1. Criar Usuário Demo
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleDemoLogin}
+              className="w-full text-sm"
+            >
+              2. Preencher Credenciais Demo
             </Button>
             <Button
               type="button"
@@ -285,7 +306,7 @@ const LoginPage: React.FC = () => {
             disabled={loading || !watchedValues.email || !watchedValues.password}
           >
             <LogIn className="mr-2 h-4 w-4" />
-            Entrar
+            3. Entrar
           </Button>
         </form>
 
