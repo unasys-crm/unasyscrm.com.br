@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn, AlertCircle, UserPlus, CheckCircle, RefreshCw, Database } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle, UserPlus, CheckCircle, RefreshCw, Database, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
@@ -28,6 +28,7 @@ const LoginPage: React.FC = () => {
   const [checkingDemoUser, setCheckingDemoUser] = useState(false)
   const [demoUserStatus, setDemoUserStatus] = useState<'none' | 'created' | 'confirmed' | 'checking'>('none')
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'error'>('unknown')
+  const [showTroubleshooting, setShowTroubleshooting] = useState(false)
 
   const from = location.state?.from?.pathname || '/dashboard'
 
@@ -52,6 +53,25 @@ const LoginPage: React.FC = () => {
       setLoading(true)
       console.log('Login form submitted with:', data.email)
       
+      // Special handling for demo user login attempts
+      if (data.email === 'demo@unasyscrm.com.br') {
+        console.log('Demo user login attempt detected')
+        
+        // Check demo user status before attempting login
+        const status = await checkDemoUserStatus()
+        
+        if (status === 'none') {
+          toast.error('Usuário demo não existe! Clique em "Criar Usuário Demo" primeiro.')
+          setShowTroubleshooting(true)
+          return
+        } else if (status === 'created') {
+          toast.error('Usuário demo existe mas o email não foi confirmado!')
+          toast.info('Vá para Supabase Dashboard → Authentication → Users e confirme o email.')
+          setShowTroubleshooting(true)
+          return
+        }
+      }
+      
       await signIn(data.email, data.password)
       
       // Wait a bit to ensure authentication is processed
@@ -67,7 +87,13 @@ const LoginPage: React.FC = () => {
         toast.error('Erro na autenticação. Tente novamente.')
       }
     } catch (error: any) {
-      // Error handling is already done in AuthContext
+      // Enhanced error handling for demo user
+      if (watchedValues.email === 'demo@unasyscrm.com.br' && 
+          error.message?.includes('Invalid login credentials')) {
+        toast.error('Usuário demo não encontrado ou não confirmado!')
+        toast.info('Use o botão "Criar Usuário Demo" ou confirme o email no Supabase Dashboard.')
+        setShowTroubleshooting(true)
+      }
       console.error('Login error:', error)
     } finally {
       setLoading(false)
@@ -175,6 +201,7 @@ const LoginPage: React.FC = () => {
             toast.warning('Usuário demo já existe mas precisa de confirmação de email.')
             toast.info('Vá para o Supabase Dashboard > Authentication > Users e confirme o email do usuário demo@unasyscrm.com.br')
             handleDemoLogin()
+            setShowTroubleshooting(true)
           } else {
             toast.info('Usuário demo já existe. Credenciais preenchidas para login.')
             handleDemoLogin()
@@ -183,6 +210,7 @@ const LoginPage: React.FC = () => {
         } else if (signUpError.message?.includes('Signup is disabled')) {
           toast.error('Cadastro está desabilitado no Supabase.')
           toast.info('Vá para Supabase Dashboard > Authentication > Settings e habilite "Enable email confirmations" ou desabilite "Confirm email" para testes.')
+          setShowTroubleshooting(true)
           return
         } else {
           throw signUpError
@@ -205,6 +233,7 @@ const LoginPage: React.FC = () => {
           toast.success('Usuário demo criado!')
           toast.warning('Email precisa ser confirmado. Vá para Supabase Dashboard > Authentication > Users e confirme o email.')
           toast.info('Ou desabilite "Confirm email" em Authentication > Settings para testes.')
+          setShowTroubleshooting(true)
         }
       } else {
         throw new Error('Falha ao criar usuário demo - nenhum usuário retornado')
@@ -225,6 +254,7 @@ const LoginPage: React.FC = () => {
       }
       
       toast.error(errorMessage)
+      setShowTroubleshooting(true)
     } finally {
       setCreatingDemoUser(false)
     }
@@ -333,6 +363,17 @@ const LoginPage: React.FC = () => {
       case 'connected': return 'text-green-600'
       case 'error': return 'text-red-600'
       default: return 'text-gray-600'
+    }
+  }
+
+  const openSupabaseDashboard = () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    if (supabaseUrl) {
+      const dashboardUrl = supabaseUrl.replace('.supabase.co', '.supabase.co').replace('//', '//app.supabase.com/project/')
+      const projectId = supabaseUrl.split('//')[1].split('.')[0]
+      window.open(`https://app.supabase.com/project/${projectId}/auth/users`, '_blank')
+    } else {
+      window.open('https://app.supabase.com', '_blank')
     }
   }
 
@@ -454,23 +495,90 @@ const LoginPage: React.FC = () => {
             </Button>
           </div>
 
-          {/* Troubleshooting Tips */}
-          {demoUserStatus === 'created' && (
-            <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs">
-              <p className="font-medium text-yellow-800 dark:text-yellow-200">💡 Dica:</p>
-              <p className="text-yellow-700 dark:text-yellow-300">
-                Vá para Supabase Dashboard → Authentication → Users e confirme o email do usuário demo, 
-                ou desabilite "Confirm email" em Authentication → Settings.
-              </p>
-            </div>
-          )}
+          {/* Enhanced Troubleshooting Section */}
+          {(showTroubleshooting || demoUserStatus === 'created' || demoUserStatus === 'none') && (
+            <div className="mt-4 space-y-3">
+              {/* Step-by-step guide */}
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded text-xs">
+                <p className="font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                  🔧 Guia de Solução de Problemas
+                </p>
+                
+                {demoUserStatus === 'none' && (
+                  <div className="space-y-2">
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Problema:</strong> Usuário demo não existe
+                    </p>
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Solução:</strong> Clique no botão "Criar Usuário Demo" acima
+                    </p>
+                  </div>
+                )}
 
-          {demoUserStatus === 'none' && connectionStatus === 'connected' && (
-            <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs">
-              <p className="font-medium text-red-800 dark:text-red-200">❌ Usuário não encontrado</p>
-              <p className="text-red-700 dark:text-red-300">
-                Clique em "Criar Usuário Demo" para criar o usuário de demonstração.
-              </p>
+                {demoUserStatus === 'created' && (
+                  <div className="space-y-2">
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Problema:</strong> Email do usuário demo não confirmado
+                    </p>
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Solução:</strong> Escolha uma das opções abaixo:
+                    </p>
+                    <div className="ml-4 space-y-1">
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        • Opção 1: Confirmar manualmente no Supabase Dashboard
+                      </p>
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        • Opção 2: Desabilitar confirmação de email (para testes)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={openSupabaseDashboard}
+                    className="text-xs px-2 py-1"
+                  >
+                    <ExternalLink className="mr-1 h-3 w-3" />
+                    Abrir Supabase Dashboard
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowTroubleshooting(false)}
+                    className="text-xs px-2 py-1"
+                  >
+                    Ocultar
+                  </Button>
+                </div>
+              </div>
+
+              {/* Detailed instructions */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                <p className="font-medium text-gray-800 dark:text-gray-200 mb-2">
+                  📋 Instruções Detalhadas
+                </p>
+                <div className="space-y-2 text-gray-700 dark:text-gray-300">
+                  <p><strong>Para confirmar email manualmente:</strong></p>
+                  <ol className="list-decimal list-inside ml-2 space-y-1">
+                    <li>Acesse o Supabase Dashboard</li>
+                    <li>Vá para Authentication → Users</li>
+                    <li>Encontre o usuário demo@unasyscrm.com.br</li>
+                    <li>Clique nos três pontos (⋯) ao lado do usuário</li>
+                    <li>Selecione "Confirm email"</li>
+                  </ol>
+                  
+                  <p className="mt-3"><strong>Para desabilitar confirmação de email:</strong></p>
+                  <ol className="list-decimal list-inside ml-2 space-y-1">
+                    <li>Acesse o Supabase Dashboard</li>
+                    <li>Vá para Authentication → Settings</li>
+                    <li>Desmarque "Confirm email"</li>
+                    <li>Clique em "Save"</li>
+                  </ol>
+                </div>
+              </div>
             </div>
           )}
         </div>
