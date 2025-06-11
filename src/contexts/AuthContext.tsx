@@ -113,7 +113,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Enhanced error message translation
       let errorMessage = 'Erro ao fazer login'
       
-      if (error.message?.includes('Invalid login credentials')) {
+      if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
         if (email.trim() === 'demo@unasyscrm.com.br') {
           errorMessage = 'Credenciais do usuário demo inválidas!'
           toast.error(errorMessage)
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           errorMessage = 'Email ou senha incorretos'
           toast.error(errorMessage)
           toast.info('💡 Verifique suas credenciais e tente novamente')
-          // Don't throw error - let the UI handle it
+          // Don't throw error for invalid credentials - let the UI handle it gracefully
           return
         }
       } else if (error.message?.includes('Email not confirmed')) {
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         errorMessage = error.message
       }
       
-      throw error
+      // Only throw error for non-credential related issues
     } finally {
       setLoading(false)
     }
