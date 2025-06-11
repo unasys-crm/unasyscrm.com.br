@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn, AlertCircle, UserPlus, CheckCircle, RefreshCw, Database, ExternalLink } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle, UserPlus, CheckCircle, RefreshCw, Database, ExternalLink, Settings } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
@@ -26,9 +26,10 @@ const LoginPage: React.FC = () => {
   const [testingConnection, setTestingConnection] = useState(false)
   const [creatingDemoUser, setCreatingDemoUser] = useState(false)
   const [checkingDemoUser, setCheckingDemoUser] = useState(false)
-  const [demoUserStatus, setDemoUserStatus] = useState<'none' | 'created' | 'confirmed' | 'checking'>('none')
-  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'error'>('unknown')
+  const [demoUserStatus, setDemoUserStatus] = useState<'none' | 'created' | 'confirmed' | 'checking' | 'auth_disabled'>('none')
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'error' | 'auth_disabled'>('unknown')
   const [showTroubleshooting, setShowTroubleshooting] = useState(false)
+  const [emailAuthDisabled, setEmailAuthDisabled] = useState(false)
 
   const from = location.state?.from?.pathname || '/dashboard'
 
@@ -53,6 +54,14 @@ const LoginPage: React.FC = () => {
       setLoading(true)
       console.log('Login form submitted with:', data.email)
       
+      // Check if email auth is disabled first
+      if (emailAuthDisabled) {
+        toast.error('❌ Autenticação por email está desabilitada!')
+        toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
+        setShowTroubleshooting(true)
+        return
+      }
+      
       // Special handling for demo user login attempts
       if (data.email.trim() === 'demo@unasyscrm.com.br') {
         console.log('Demo user login attempt detected')
@@ -60,7 +69,12 @@ const LoginPage: React.FC = () => {
         // Check demo user status before attempting login
         const status = await checkDemoUserStatus()
         
-        if (status === 'none') {
+        if (status === 'auth_disabled') {
+          toast.error('❌ Autenticação por email está desabilitada!')
+          toast.info('💡 Habilite o provedor de email no Supabase Dashboard primeiro')
+          setShowTroubleshooting(true)
+          return
+        } else if (status === 'none') {
           toast.error('❌ Usuário demo não existe!')
           toast.info('💡 Clique em "Criar Usuário Demo" primeiro')
           setShowTroubleshooting(true)
@@ -89,6 +103,17 @@ const LoginPage: React.FC = () => {
         toast.error('Erro na autenticação. Tente novamente.')
       }
     } catch (error: any) {
+      // Check for email auth disabled error
+      if (error.message?.includes('Email logins are disabled') || 
+          error.message?.includes('email_provider_disabled')) {
+        setEmailAuthDisabled(true)
+        setConnectionStatus('auth_disabled')
+        toast.error('❌ Autenticação por email está desabilitada!')
+        toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
+        setShowTroubleshooting(true)
+        return
+      }
+      
       // Enhanced error handling for demo user
       if (data.email?.trim() === 'demo@unasyscrm.com.br' && 
           error.message?.includes('Invalid login credentials')) {
@@ -141,30 +166,56 @@ const LoginPage: React.FC = () => {
         password: 'demo123456',
       })
 
+      if (error) {
+        // Check for email auth disabled error first
+        if (error.message?.includes('Email logins are disabled') || 
+            error.message?.includes('email_provider_disabled')) {
+          setEmailAuthDisabled(true)
+          setDemoUserStatus('auth_disabled')
+          setConnectionStatus('auth_disabled')
+          console.log('Email authentication is disabled')
+          return 'auth_disabled'
+        } else if (error.message?.includes('Email not confirmed')) {
+          // User exists but email not confirmed
+          setDemoUserStatus('created')
+          console.log('Demo user exists but email not confirmed')
+          return 'created'
+        } else if (error.message?.includes('Invalid login credentials')) {
+          // User doesn't exist
+          setDemoUserStatus('none')
+          console.log('Demo user does not exist')
+          return 'none'
+        } else {
+          // Other error
+          console.error('Error checking demo user status:', error)
+          setDemoUserStatus('none')
+          return 'none'
+        }
+      }
+
       if (!error && data.user) {
         // User exists and login successful
         await supabase.auth.signOut() // Sign out immediately
         setDemoUserStatus('confirmed')
         console.log('Demo user exists and is confirmed')
         return 'confirmed'
-      } else if (error?.message?.includes('Email not confirmed')) {
-        // User exists but email not confirmed
-        setDemoUserStatus('created')
-        console.log('Demo user exists but email not confirmed')
-        return 'created'
-      } else if (error?.message?.includes('Invalid login credentials')) {
-        // User doesn't exist
-        setDemoUserStatus('none')
-        console.log('Demo user does not exist')
-        return 'none'
-      } else {
-        // Other error
-        console.error('Error checking demo user status:', error)
-        setDemoUserStatus('none')
-        return 'none'
       }
-    } catch (error) {
+
+      // Fallback
+      setDemoUserStatus('none')
+      return 'none'
+    } catch (error: any) {
       console.error('Error checking demo user status:', error)
+      
+      // Check for email auth disabled error in catch block too
+      if (error.message?.includes('Email logins are disabled') || 
+          error.message?.includes('email_provider_disabled')) {
+        setEmailAuthDisabled(true)
+        setDemoUserStatus('auth_disabled')
+        setConnectionStatus('auth_disabled')
+        return 'auth_disabled'
+      }
+      
       setDemoUserStatus('none')
       return 'none'
     } finally {
@@ -178,8 +229,23 @@ const LoginPage: React.FC = () => {
     try {
       console.log('Creating demo user...')
       
+      // Check if email auth is disabled first
+      if (emailAuthDisabled) {
+        toast.error('❌ Autenticação por email está desabilitada!')
+        toast.info('💡 Habilite o provedor de email no Supabase Dashboard primeiro')
+        setShowTroubleshooting(true)
+        return
+      }
+      
       // First check current status
       const currentStatus = await checkDemoUserStatus()
+      
+      if (currentStatus === 'auth_disabled') {
+        toast.error('❌ Autenticação por email está desabilitada!')
+        toast.info('💡 Habilite o provedor de email no Supabase Dashboard primeiro')
+        setShowTroubleshooting(true)
+        return
+      }
       
       if (currentStatus === 'confirmed') {
         toast.success('Usuário demo já existe e está confirmado!')
@@ -204,6 +270,17 @@ const LoginPage: React.FC = () => {
 
       if (signUpError) {
         console.error('Sign up error:', signUpError)
+        
+        // Check for email auth disabled error
+        if (signUpError.message?.includes('Email logins are disabled') || 
+            signUpError.message?.includes('email_provider_disabled')) {
+          setEmailAuthDisabled(true)
+          setConnectionStatus('auth_disabled')
+          toast.error('❌ Autenticação por email está desabilitada!')
+          toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
+          setShowTroubleshooting(true)
+          return
+        }
         
         if (signUpError.message?.includes('User already registered')) {
           // User already exists, check status again
@@ -260,6 +337,18 @@ const LoginPage: React.FC = () => {
 
     } catch (error: any) {
       console.error('Error creating demo user:', error)
+      
+      // Check for email auth disabled error in catch block
+      if (error.message?.includes('Email logins are disabled') || 
+          error.message?.includes('email_provider_disabled')) {
+        setEmailAuthDisabled(true)
+        setConnectionStatus('auth_disabled')
+        toast.error('❌ Autenticação por email está desabilitada!')
+        toast.info('💡 Habilite o provedor de email no Supabase Dashboard')
+        setShowTroubleshooting(true)
+        return
+      }
+      
       let errorMessage = 'Erro ao criar usuário demo'
       
       if (error.message?.includes('Signup is disabled')) {
@@ -314,16 +403,31 @@ const LoginPage: React.FC = () => {
         
         if (response.ok) {
           const settings = await response.json()
-          toast.success('Conexão com Supabase OK!')
-          console.log('Connection test successful', settings)
-          setConnectionStatus('connected')
           
-          // Check demo user status after successful connection
-          const status = await checkDemoUserStatus()
-          const statusText = status === 'confirmed' ? 'Confirmado ✅' : 
-                           status === 'created' ? 'Criado (precisa confirmar) ⚠️' : 
-                           'Não existe ❌'
-          toast.info(`Status do usuário demo: ${statusText}`)
+          // Check if email provider is enabled
+          const emailEnabled = settings.external_email_enabled !== false
+          
+          if (!emailEnabled) {
+            setEmailAuthDisabled(true)
+            setConnectionStatus('auth_disabled')
+            toast.warning('Conexão OK, mas autenticação por email está desabilitada!')
+            toast.info('Habilite o provedor de email no Supabase Dashboard')
+            setShowTroubleshooting(true)
+          } else {
+            toast.success('Conexão com Supabase OK!')
+            setConnectionStatus('connected')
+            setEmailAuthDisabled(false)
+            
+            // Check demo user status after successful connection
+            const status = await checkDemoUserStatus()
+            const statusText = status === 'confirmed' ? 'Confirmado ✅' : 
+                             status === 'created' ? 'Criado (precisa confirmar) ⚠️' : 
+                             status === 'auth_disabled' ? 'Auth desabilitada ❌' :
+                             'Não existe ❌'
+            toast.info(`Status do usuário demo: ${statusText}`)
+          }
+          
+          console.log('Connection test successful', settings)
           
           // Show additional info about email confirmation settings
           if (settings.external_email_enabled === false) {
@@ -364,6 +468,7 @@ const LoginPage: React.FC = () => {
       case 'confirmed': return 'text-green-600'
       case 'created': return 'text-yellow-600'
       case 'checking': return 'text-blue-600'
+      case 'auth_disabled': return 'text-red-600'
       default: return 'text-red-600'
     }
   }
@@ -373,6 +478,7 @@ const LoginPage: React.FC = () => {
       case 'confirmed': return 'Usuário confirmado e pronto para login ✅'
       case 'created': return 'Usuário existe (precisa confirmar email) ⚠️'
       case 'checking': return 'Verificando status...'
+      case 'auth_disabled': return 'Autenticação por email desabilitada ❌'
       default: return 'Usuário não encontrado - precisa ser criado ❌'
     }
   }
@@ -380,15 +486,34 @@ const LoginPage: React.FC = () => {
   const getConnectionStatusColor = () => {
     switch (connectionStatus) {
       case 'connected': return 'text-green-600'
+      case 'auth_disabled': return 'text-yellow-600'
       case 'error': return 'text-red-600'
       default: return 'text-gray-600'
+    }
+  }
+
+  const getConnectionStatusText = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'Conectado ao Supabase'
+      case 'auth_disabled': return 'Conectado (Auth por email desabilitada)'
+      case 'error': return 'Erro de conexão'
+      default: return 'Status desconhecido'
     }
   }
 
   const openSupabaseDashboard = () => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     if (supabaseUrl) {
-      const dashboardUrl = supabaseUrl.replace('.supabase.co', '.supabase.co').replace('//', '//app.supabase.com/project/')
+      const projectId = supabaseUrl.split('//')[1].split('.')[0]
+      window.open(`https://app.supabase.com/project/${projectId}/auth/providers`, '_blank')
+    } else {
+      window.open('https://app.supabase.com', '_blank')
+    }
+  }
+
+  const openSupabaseUsers = () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    if (supabaseUrl) {
       const projectId = supabaseUrl.split('//')[1].split('.')[0]
       window.open(`https://app.supabase.com/project/${projectId}/auth/users`, '_blank')
     } else {
@@ -421,7 +546,37 @@ const LoginPage: React.FC = () => {
         {connectionStatus !== 'unknown' && (
           <div className={`text-center text-sm ${getConnectionStatusColor()}`}>
             <Database className="inline h-4 w-4 mr-1" />
-            {connectionStatus === 'connected' ? 'Conectado ao Supabase' : 'Erro de conexão'}
+            {getConnectionStatusText()}
+          </div>
+        )}
+
+        {/* Email Auth Disabled Warning */}
+        {emailAuthDisabled && (
+          <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  ⚠️ Autenticação por Email Desabilitada
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                  O provedor de email não está habilitado no seu projeto Supabase. 
+                  Você precisa habilitá-lo para fazer login ou criar usuários.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={openSupabaseDashboard}
+                className="w-full text-sm"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Abrir Configurações de Auth
+              </Button>
+            </div>
           </div>
         )}
 
@@ -466,6 +621,7 @@ const LoginPage: React.FC = () => {
                   }, 500)
                 }}
                 className="w-full text-sm"
+                disabled={emailAuthDisabled}
               >
                 <LogIn className="mr-2 h-4 w-4" />
                 Preencher Credenciais Demo
@@ -477,6 +633,7 @@ const LoginPage: React.FC = () => {
                 onClick={createDemoUser}
                 loading={creatingDemoUser}
                 className="w-full text-sm"
+                disabled={emailAuthDisabled}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Criar Usuário Demo
@@ -517,7 +674,7 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* Enhanced Troubleshooting Section */}
-          {(showTroubleshooting || demoUserStatus === 'created' || demoUserStatus === 'none') && (
+          {(showTroubleshooting || demoUserStatus === 'created' || demoUserStatus === 'none' || demoUserStatus === 'auth_disabled' || emailAuthDisabled) && (
             <div className="mt-4 space-y-3">
               {/* Step-by-step guide */}
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded text-xs">
@@ -525,7 +682,35 @@ const LoginPage: React.FC = () => {
                   🔧 Guia de Solução de Problemas
                 </p>
                 
-                {demoUserStatus === 'none' && (
+                {(demoUserStatus === 'auth_disabled' || emailAuthDisabled) && (
+                  <div className="space-y-2">
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Problema:</strong> Autenticação por email está desabilitada
+                    </p>
+                    <p className="text-yellow-700 dark:text-yellow-300">
+                      <strong>Solução:</strong> Habilitar o provedor de email no Supabase
+                    </p>
+                    <div className="ml-4 space-y-1">
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        1. Acesse o Supabase Dashboard
+                      </p>
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        2. Vá para Authentication → Providers
+                      </p>
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        3. Encontre "Email" na lista de provedores
+                      </p>
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        4. Clique no toggle para habilitar
+                      </p>
+                      <p className="text-yellow-600 dark:text-yellow-400">
+                        5. Clique em "Save" para salvar as alterações
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {demoUserStatus === 'none' && !emailAuthDisabled && (
                   <div className="space-y-2">
                     <p className="text-yellow-700 dark:text-yellow-300">
                       <strong>Problema:</strong> Usuário demo não existe
@@ -536,7 +721,7 @@ const LoginPage: React.FC = () => {
                   </div>
                 )}
 
-                {demoUserStatus === 'created' && (
+                {demoUserStatus === 'created' && !emailAuthDisabled && (
                   <div className="space-y-2">
                     <p className="text-yellow-700 dark:text-yellow-300">
                       <strong>Problema:</strong> Email do usuário demo não confirmado
@@ -556,15 +741,27 @@ const LoginPage: React.FC = () => {
                 )}
 
                 <div className="flex gap-2 mt-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={openSupabaseDashboard}
-                    className="text-xs px-2 py-1"
-                  >
-                    <ExternalLink className="mr-1 h-3 w-3" />
-                    Abrir Supabase Dashboard
-                  </Button>
+                  {(demoUserStatus === 'auth_disabled' || emailAuthDisabled) ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={openSupabaseDashboard}
+                      className="text-xs px-2 py-1"
+                    >
+                      <Settings className="mr-1 h-3 w-3" />
+                      Configurar Auth
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={openSupabaseUsers}
+                      className="text-xs px-2 py-1"
+                    >
+                      <ExternalLink className="mr-1 h-3 w-3" />
+                      Gerenciar Usuários
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="ghost"
@@ -582,22 +779,39 @@ const LoginPage: React.FC = () => {
                   📋 Instruções Detalhadas
                 </p>
                 <div className="space-y-2 text-gray-700 dark:text-gray-300">
-                  <p><strong>Para confirmar email manualmente:</strong></p>
-                  <ol className="list-decimal list-inside ml-2 space-y-1">
-                    <li>Acesse o Supabase Dashboard</li>
-                    <li>Vá para Authentication → Users</li>
-                    <li>Encontre o usuário demo@unasyscrm.com.br</li>
-                    <li>Clique nos três pontos (⋯) ao lado do usuário</li>
-                    <li>Selecione "Confirm email"</li>
-                  </ol>
-                  
-                  <p className="mt-3"><strong>Para desabilitar confirmação de email:</strong></p>
-                  <ol className="list-decimal list-inside ml-2 space-y-1">
-                    <li>Acesse o Supabase Dashboard</li>
-                    <li>Vá para Authentication → Settings</li>
-                    <li>Desmarque "Confirm email"</li>
-                    <li>Clique em "Save"</li>
-                  </ol>
+                  {(demoUserStatus === 'auth_disabled' || emailAuthDisabled) ? (
+                    <>
+                      <p><strong>Para habilitar autenticação por email:</strong></p>
+                      <ol className="list-decimal list-inside ml-2 space-y-1">
+                        <li>Acesse o Supabase Dashboard</li>
+                        <li>Vá para Authentication → Providers</li>
+                        <li>Encontre "Email" na lista de provedores</li>
+                        <li>Certifique-se de que o toggle está habilitado (verde)</li>
+                        <li>Se não estiver, clique no toggle para habilitar</li>
+                        <li>Clique em "Save" para salvar as alterações</li>
+                        <li>Aguarde alguns segundos e teste novamente</li>
+                      </ol>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>Para confirmar email manualmente:</strong></p>
+                      <ol className="list-decimal list-inside ml-2 space-y-1">
+                        <li>Acesse o Supabase Dashboard</li>
+                        <li>Vá para Authentication → Users</li>
+                        <li>Encontre o usuário demo@unasyscrm.com.br</li>
+                        <li>Clique nos três pontos (⋯) ao lado do usuário</li>
+                        <li>Selecione "Confirm email"</li>
+                      </ol>
+                      
+                      <p className="mt-3"><strong>Para desabilitar confirmação de email:</strong></p>
+                      <ol className="list-decimal list-inside ml-2 space-y-1">
+                        <li>Acesse o Supabase Dashboard</li>
+                        <li>Vá para Authentication → Settings</li>
+                        <li>Desmarque "Confirm email"</li>
+                        <li>Clique em "Save"</li>
+                      </ol>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -612,6 +826,7 @@ const LoginPage: React.FC = () => {
             <p>Password: "{watchedValues.password}"</p>
             <p>Demo Status: {demoUserStatus}</p>
             <p>Connection: {connectionStatus}</p>
+            <p>Email Auth Disabled: {emailAuthDisabled.toString()}</p>
             <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL}</p>
             <p>Anon Key Present: {!!import.meta.env.VITE_SUPABASE_ANON_KEY}</p>
             {Object.keys(errors).length > 0 && <p>Errors: {JSON.stringify(errors)}</p>}
@@ -627,6 +842,7 @@ const LoginPage: React.FC = () => {
               placeholder="Digite seu email"
               {...register('email')}
               error={errors.email?.message}
+              disabled={emailAuthDisabled}
             />
 
             <div className="relative">
@@ -637,11 +853,13 @@ const LoginPage: React.FC = () => {
                 placeholder="Digite sua senha"
                 {...register('password')}
                 error={errors.password?.message}
+                disabled={emailAuthDisabled}
               />
               <button
                 type="button"
                 className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={emailAuthDisabled}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -667,11 +885,17 @@ const LoginPage: React.FC = () => {
             type="submit"
             className="w-full"
             loading={loading}
-            disabled={loading || !watchedValues.email || !watchedValues.password}
+            disabled={loading || !watchedValues.email || !watchedValues.password || emailAuthDisabled}
           >
             <LogIn className="mr-2 h-4 w-4" />
-            Entrar
+            {emailAuthDisabled ? 'Login Desabilitado' : 'Entrar'}
           </Button>
+          
+          {emailAuthDisabled && (
+            <p className="text-xs text-center text-red-600 dark:text-red-400">
+              Habilite a autenticação por email no Supabase para fazer login
+            </p>
+          )}
         </form>
 
         <div className="text-center">
