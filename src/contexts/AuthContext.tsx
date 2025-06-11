@@ -114,10 +114,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let errorMessage = 'Erro ao fazer login'
       
       if (error.message?.includes('Invalid login credentials')) {
-        if (email === 'demo@unasyscrm.com.br') {
-          errorMessage = 'Usuário demo não encontrado. Use o botão "Criar Usuário Demo" primeiro ou verifique se o usuário foi criado corretamente no Supabase.'
+        if (email.trim() === 'demo@unasyscrm.com.br') {
+          errorMessage = 'Credenciais do usuário demo inválidas!'
+          toast.error(errorMessage)
+          toast.info('💡 Solução: Use o botão "Criar Usuário Demo" na tela de login')
+          toast.info('📋 Ou confirme o email no Supabase Dashboard se o usuário já existe')
+          // Don't throw error for demo user - let the UI handle it
+          return
         } else {
-          errorMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.'
+          errorMessage = 'Email ou senha incorretos'
+          toast.error(errorMessage)
+          toast.info('💡 Verifique suas credenciais e tente novamente')
+          // Don't throw error - let the UI handle it
+          return
         }
       } else if (error.message?.includes('Email not confirmed')) {
         errorMessage = 'Email não confirmado. Verifique sua caixa de entrada ou confirme o email no painel do Supabase.'
@@ -131,7 +140,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         errorMessage = error.message
       }
       
-      toast.error(errorMessage)
       throw error
     } finally {
       setLoading(false)
