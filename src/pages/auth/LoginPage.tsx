@@ -159,7 +159,7 @@ const LoginPage: React.FC = () => {
         // Attempt automatic login
         const loginSuccess = await attemptDemoLogin()
         if (!loginSuccess) {
-          toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+          toast('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
         }
         return
       }
@@ -171,7 +171,7 @@ const LoginPage: React.FC = () => {
         // Attempt automatic login
         const loginSuccess = await attemptDemoLogin()
         if (!loginSuccess) {
-          toast.info('Usuário demo existe mas pode precisar de confirmação. Credenciais preenchidas - clique em "Entrar" para tentar o login.')
+          toast('Usuário demo existe mas pode precisar de confirmação. Credenciais preenchidas - clique em "Entrar" para tentar o login.')
         }
         return
       }
@@ -199,10 +199,10 @@ const LoginPage: React.FC = () => {
             // Attempt automatic login
             const loginSuccess = await attemptDemoLogin()
             if (!loginSuccess) {
-              toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+              toast('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
             }
           } else {
-            toast.info('Usuário demo já existe. Credenciais preenchidas - tente fazer login.')
+            toast('Usuário demo já existe. Credenciais preenchidas - tente fazer login.')
             handleDemoLogin()
           }
           return
@@ -229,7 +229,7 @@ const LoginPage: React.FC = () => {
           // Attempt automatic login
           const loginSuccess = await attemptDemoLogin()
           if (!loginSuccess) {
-            toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+            toast('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
           }
         } else {
           // Email confirmation required
@@ -241,7 +241,7 @@ const LoginPage: React.FC = () => {
           const loginSuccess = await attemptDemoLogin()
           
           if (!loginSuccess) {
-            toast.info('Usuário demo criado. Se a confirmação de email estiver habilitada, verifique o email demo@unasyscrm.com.br. Caso contrário, clique em "Entrar" para fazer login.')
+            toast('Usuário demo criado. Se a confirmação de email estiver habilitada, verifique o email demo@unasyscrm.com.br. Caso contrário, clique em "Entrar" para fazer login.')
           }
         }
       } else {
