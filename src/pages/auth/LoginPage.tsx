@@ -28,6 +28,7 @@ const LoginPage: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   })
@@ -35,13 +36,21 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setLoading(true)
+      console.log('Login form submitted with:', data.email)
       await signIn(data.email, data.password)
       navigate(from, { replace: true })
     } catch (error) {
       // Error is handled by the AuthContext
+      console.error('Login failed:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Demo login function
+  const handleDemoLogin = () => {
+    setValue('email', 'demo@unasyscrm.com.br')
+    setValue('password', 'demo123456')
   }
 
   return (
@@ -63,6 +72,21 @@ const LoginPage: React.FC = () => {
               crie uma nova conta
             </Link>
           </p>
+        </div>
+
+        {/* Demo Login Button */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+            Para testar o sistema, use as credenciais de demonstração:
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleDemoLogin}
+            className="w-full"
+          >
+            Preencher dados de demonstração
+          </Button>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
