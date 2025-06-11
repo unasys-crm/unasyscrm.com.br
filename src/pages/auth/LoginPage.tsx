@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
@@ -24,6 +24,7 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [testingConnection, setTestingConnection] = useState(false)
+  const [creatingDemoUser, setCreatingDemoUser] = useState(false)
 
   const from = location.state?.from?.pathname || '/dashboard'
 
@@ -42,6 +43,7 @@ const LoginPage: React.FC = () => {
   })
 
   const watchedValues = watch()
+  
   const onSubmit = async (data: LoginFormData) => {
     try {
       setLoading(true)
@@ -61,8 +63,11 @@ const LoginPage: React.FC = () => {
         console.error('Login failed: no session found')
         toast.error('Erro na autenticação. Tente novamente.')
       }
-    } catch (error) {
-      // Error is handled by the AuthContext
+    } catch (error: any) {
+      // Enhanced error handling for demo user
+      if (error.message?.includes('Invalid login credentials') && data.email === 'demo@unasyscrm.com.br') {
+        toast.error('Usuário demo não encontrado. Clique em "Criar Usuário Demo" para configurá-lo.')
+      }
       console.error('Login failed:', error)
     } finally {
       setLoading(false)
@@ -81,6 +86,40 @@ const LoginPage: React.FC = () => {
         form.querySelectorAll('input').forEach(input => input.dispatchEvent(event))
       }
     }, 100)
+  }
+
+  // Create demo user function
+  const createDemoUser = async () => {
+    setCreatingDemoUser(true)
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: 'demo@unasyscrm.com.br',
+        password: 'demo123456',
+        options: {
+          data: {
+            name: 'Usuário Demo',
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        },
+      })
+
+      if (error) {
+        if (error.message?.includes('User already registered')) {
+          toast.success('Usuário demo já existe! Você pode fazer login normalmente.')
+        } else {
+          throw error
+        }
+      } else {
+        toast.success('Usuário demo criado com sucesso! Você pode fazer login agora.')
+        // Auto-fill the form
+        handleDemoLogin()
+      }
+    } catch (error: any) {
+      console.error('Error creating demo user:', error)
+      toast.error(`Erro ao criar usuário demo: ${error.message}`)
+    } finally {
+      setCreatingDemoUser(false)
+    }
   }
 
   // Test connection function
@@ -123,21 +162,43 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo Login Button */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-          <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-            <strong>Credenciais de demonstração:</strong><br />
-            Email: demo@unasyscrm.com.br<br />
-            Senha: demo123456
-          </p>
-          <div className="space-y-2">
+        {/* Demo Login Section */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start space-x-2 mb-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                Demonstração do Sistema
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Use as credenciais abaixo para testar o sistema:
+              </p>
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-gray-800 p-3 rounded border text-xs font-mono">
+            <p><strong>Email:</strong> demo@unasyscrm.com.br</p>
+            <p><strong>Senha:</strong> demo123456</p>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-2 mt-3">
             <Button
               type="button"
               variant="secondary"
               onClick={handleDemoLogin}
-              className="w-full"
+              className="w-full text-sm"
             >
-              Preencher dados de demonstração
+              Preencher Credenciais Demo
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={createDemoUser}
+              loading={creatingDemoUser}
+              className="w-full text-sm"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Criar Usuário Demo
             </Button>
             <Button
               type="button"
@@ -160,6 +221,7 @@ const LoginPage: React.FC = () => {
             <p>Errors: {JSON.stringify(errors)}</p>
           </div>
         )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <Input
