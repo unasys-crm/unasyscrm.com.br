@@ -7,14 +7,14 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   helperText?: string
 }
 
-const Input: React.FC<InputProps> = ({
+const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   label,
   error,
   helperText,
   className,
   id,
   ...props
-}) => {
+}, ref) => {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-')
 
   return (
@@ -25,6 +25,7 @@ const Input: React.FC<InputProps> = ({
         </label>
       )}
       <input
+        ref={ref}
         id={inputId}
         className={clsx(
           'form-input',
@@ -41,6 +42,8 @@ const Input: React.FC<InputProps> = ({
       )}
     </div>
   )
-}
+})
+
+Input.displayName = 'Input'
 
 export default Input

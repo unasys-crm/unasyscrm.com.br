@@ -11,8 +11,8 @@ import Input from '../../components/ui/Input'
 import toast from 'react-hot-toast'
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  email: z.string().min(1, 'Email é obrigatório').email('Email inválido'),
+  password: z.string().min(1, 'Senha é obrigatória').min(6, 'Senha deve ter pelo menos 6 caracteres'),
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -32,20 +32,20 @@ const LoginPage: React.FC = () => {
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: ''
+    }
   })
 
+  const watchedValues = watch()
   const onSubmit = async (data: LoginFormData) => {
     try {
       setLoading(true)
       console.log('Login form submitted with:', data.email)
-      
-      // Verificar se os campos estão preenchidos
-      if (!data.email || !data.password) {
-        toast.error('Por favor, preencha todos os campos')
-        return
-      }
       
       await signIn(data.email, data.password)
       
@@ -73,6 +73,14 @@ const LoginPage: React.FC = () => {
   const handleDemoLogin = () => {
     setValue('email', 'demo@unasyscrm.com.br')
     setValue('password', 'demo123456')
+    // Trigger validation after setting values
+    setTimeout(() => {
+      const form = document.querySelector('form')
+      if (form) {
+        const event = new Event('input', { bubbles: true })
+        form.querySelectorAll('input').forEach(input => input.dispatchEvent(event))
+      }
+    }, 100)
   }
 
   // Test connection function
@@ -143,12 +151,22 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Debug info */}
+        {import.meta.env.DEV && (
+          <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
+            <p>Debug - Valores atuais:</p>
+            <p>Email: "{watchedValues.email}"</p>
+            <p>Password: "{watchedValues.password}"</p>
+            <p>Errors: {JSON.stringify(errors)}</p>
+          </div>
+        )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <Input
               label="Email"
               type="email"
               autoComplete="email"
+              placeholder="Digite seu email"
               {...register('email')}
               error={errors.email?.message}
             />
@@ -158,6 +176,7 @@ const LoginPage: React.FC = () => {
                 label="Senha"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                placeholder="Digite sua senha"
                 {...register('password')}
                 error={errors.password?.message}
               />
@@ -190,6 +209,7 @@ const LoginPage: React.FC = () => {
             type="submit"
             className="w-full"
             loading={loading}
+            disabled={loading || !watchedValues.email || !watchedValues.password}
           >
             <LogIn className="mr-2 h-4 w-4" />
             Entrar

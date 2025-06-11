@@ -75,14 +75,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true)
       console.log('Attempting to sign in with:', email)
       
-      // Verificar se os campos estão preenchidos
-      if (!email || !password) {
+      // Verificar se os campos estão preenchidos e válidos
+      if (!email?.trim() || !password?.trim()) {
         throw new Error('Email e senha são obrigatórios')
       }
       
+      if (email.trim().length < 3) {
+        throw new Error('Email deve ter pelo menos 3 caracteres')
+      }
+      
+      if (password.trim().length < 6) {
+        throw new Error('Senha deve ter pelo menos 6 caracteres')
+      }
+      
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email.trim(),
+        password: password.trim(),
       })
 
       if (error) {
@@ -106,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
       } else if (error.message?.includes('Email rate limit exceeded')) {
         errorMessage = 'Muitas tentativas de login. Aguarde alguns minutos.'
-      } else if (error.message?.includes('obrigatórios')) {
+      } else if (error.message?.includes('obrigatório')) {
         errorMessage = error.message
       } else if (error.message) {
         errorMessage = error.message
