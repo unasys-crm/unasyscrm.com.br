@@ -115,7 +115,35 @@ const LoginPage: React.FC = () => {
     }
   }
 
-  // Create demo user function with improved error handling
+  // Attempt automatic login with demo credentials
+  const attemptDemoLogin = async () => {
+    try {
+      console.log('Attempting automatic demo login...')
+      
+      // Use the signIn method from AuthContext for consistency
+      await signIn('demo@unasyscrm.com.br', 'demo123456')
+      
+      // Wait a bit for authentication to process
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Check if login was successful
+      const { data: session } = await supabase.auth.getSession()
+      if (session.session) {
+        console.log('Automatic demo login successful, navigating to dashboard')
+        toast.success('Login automático realizado com sucesso!')
+        navigate(from, { replace: true })
+        return true
+      } else {
+        console.log('Automatic demo login failed - no session')
+        return false
+      }
+    } catch (error: any) {
+      console.log('Automatic demo login failed:', error.message)
+      return false
+    }
+  }
+
+  // Create demo user function with improved error handling and automatic login
   const createDemoUser = async () => {
     setCreatingDemoUser(true)
     try {
@@ -125,14 +153,26 @@ const LoginPage: React.FC = () => {
       const status = await checkDemoUserStatus()
       
       if (status === 'confirmed') {
-        toast.success('Usuário demo já existe e está confirmado! Use as credenciais para fazer login.')
+        toast.success('Usuário demo já existe e está confirmado!')
         handleDemoLogin()
+        
+        // Attempt automatic login
+        const loginSuccess = await attemptDemoLogin()
+        if (!loginSuccess) {
+          toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+        }
         return
       }
       
       if (status === 'created') {
-        toast.info('Usuário demo já existe mas precisa ser confirmado. Verifique o email ou tente fazer login diretamente.')
+        toast.info('Usuário demo já existe. Tentando login automático...')
         handleDemoLogin()
+        
+        // Attempt automatic login
+        const loginSuccess = await attemptDemoLogin()
+        if (!loginSuccess) {
+          toast.info('Usuário demo existe mas pode precisar de confirmação. Credenciais preenchidas - clique em "Entrar" para tentar o login.')
+        }
         return
       }
 
@@ -153,11 +193,18 @@ const LoginPage: React.FC = () => {
           // User already exists, check status again
           const newStatus = await checkDemoUserStatus()
           if (newStatus === 'confirmed') {
-            toast.success('Usuário demo já existe e está funcionando! Use as credenciais para fazer login.')
+            toast.success('Usuário demo já existe e está funcionando!')
+            handleDemoLogin()
+            
+            // Attempt automatic login
+            const loginSuccess = await attemptDemoLogin()
+            if (!loginSuccess) {
+              toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+            }
           } else {
-            toast.info('Usuário demo já existe. Se não conseguir fazer login, pode ser necessário confirmar o email.')
+            toast.info('Usuário demo já existe. Credenciais preenchidas - tente fazer login.')
+            handleDemoLogin()
           }
-          handleDemoLogin()
           return
         } else if (signUpError.message?.includes('signup is disabled')) {
           toast.error('Cadastro está desabilitado no Supabase. Entre em contato com o administrador.')
@@ -170,18 +217,33 @@ const LoginPage: React.FC = () => {
       if (signUpData.user) {
         console.log('Demo user created successfully:', signUpData.user.email)
         
+        // Fill in the form credentials
+        handleDemoLogin()
+        
         // Check if email confirmation is required
         if (signUpData.user.email_confirmed_at) {
           // User is already confirmed (email confirmation disabled)
           setDemoUserStatus('confirmed')
-          toast.success('Usuário demo criado e confirmado automaticamente! Use as credenciais para fazer login.')
+          toast.success('Usuário demo criado e confirmado automaticamente!')
+          
+          // Attempt automatic login
+          const loginSuccess = await attemptDemoLogin()
+          if (!loginSuccess) {
+            toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+          }
         } else {
           // Email confirmation required
           setDemoUserStatus('created')
-          toast.success('Usuário demo criado! Verifique o email demo@unasyscrm.com.br para confirmar a conta, ou tente fazer login diretamente se a confirmação estiver desabilitada.')
+          toast.success('Usuário demo criado! Tentando login automático...')
+          
+          // Wait a moment and try automatic login (sometimes works even without email confirmation)
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          const loginSuccess = await attemptDemoLogin()
+          
+          if (!loginSuccess) {
+            toast.info('Usuário demo criado. Se a confirmação de email estiver habilitada, verifique o email demo@unasyscrm.com.br. Caso contrário, clique em "Entrar" para fazer login.')
+          }
         }
-        
-        handleDemoLogin()
       } else {
         throw new Error('Falha ao criar usuário demo - nenhum usuário retornado')
       }
@@ -263,7 +325,7 @@ const LoginPage: React.FC = () => {
                 Demonstração do Sistema
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Para testar o sistema, primeiro crie o usuário demo e depois faça login:
+                Para testar o sistema, clique em "Criar Usuário Demo" - o login será feito automaticamente:
               </p>
             </div>
           </div>
@@ -290,7 +352,7 @@ const LoginPage: React.FC = () => {
               className="w-full text-sm"
             >
               <UserPlus className="mr-2 h-4 w-4" />
-              {demoUserStatus === 'confirmed' ? '✓ Usuário Demo OK' : '1. Criar Usuário Demo'}
+              {demoUserStatus === 'confirmed' ? '✓ Entrar como Demo' : 'Criar e Entrar como Demo'}
             </Button>
             <Button
               type="button"
@@ -298,7 +360,7 @@ const LoginPage: React.FC = () => {
               onClick={handleDemoLogin}
               className="w-full text-sm"
             >
-              2. Preencher Credenciais Demo
+              Apenas Preencher Credenciais
             </Button>
             <Button
               type="button"
@@ -375,13 +437,13 @@ const LoginPage: React.FC = () => {
             disabled={loading || !watchedValues.email || !watchedValues.password}
           >
             <LogIn className="mr-2 h-4 w-4" />
-            3. Entrar
+            Entrar
           </Button>
         </form>
 
         <div className="text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            © 2024 UnasyCRM. Todos os direitos reservados.
+            © 2024 UnasyCRM. Todos os direitos reserved.
           </p>
         </div>
       </div>
