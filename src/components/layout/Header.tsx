@@ -18,7 +18,7 @@ import Button from '../ui/Button'
 const Header: React.FC = () => {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
-  const { theme, setTheme, isDark } = useTheme()
+  const { setTheme, isDark } = useTheme()
   const { currentCompany, companies, switchCompany } = useCompany()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showCompanyMenu, setShowCompanyMenu] = useState(false)

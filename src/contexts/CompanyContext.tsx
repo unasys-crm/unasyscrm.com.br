@@ -75,7 +75,7 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
         selectedCompany = userCompanies[0]
       }
 
-      setCurrentCompany(selectedCompany)
+      setCurrentCompany(selectedCompany || null)
 
       if (selectedCompany) {
         localStorage.setItem('currentCompanyId', selectedCompany.id)
