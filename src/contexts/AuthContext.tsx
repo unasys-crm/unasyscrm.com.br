@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Senha deve ter pelo menos 6 caracteres')
       }
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       })
@@ -98,7 +98,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw error
       }
       
-      console.log('Sign in successful')
+      if (!data.user) {
+        throw new Error('Login falhou - nenhum usuário retornado')
+      }
+      
+      console.log('Sign in successful for user:', data.user.email)
       
       // Aguardar um pouco para garantir que a sessão seja estabelecida
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -111,15 +115,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error.message?.includes('Invalid login credentials')) {
         if (email === 'demo@unasyscrm.com.br') {
-          errorMessage = 'Usuário demo não encontrado ou não confirmado. Use o botão "Criar Usuário Demo" para configurá-lo ou verifique se o email foi confirmado.'
+          errorMessage = 'Usuário demo não encontrado. Use o botão "Criar Usuário Demo" primeiro ou verifique se o usuário foi criado corretamente no Supabase.'
         } else {
           errorMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.'
         }
       } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = 'Email não confirmado. Verifique sua caixa de entrada ou use o usuário demo.'
+        errorMessage = 'Email não confirmado. Verifique sua caixa de entrada ou confirme o email no painel do Supabase.'
       } else if (error.message?.includes('Email rate limit exceeded')) {
         errorMessage = 'Muitas tentativas de login. Aguarde alguns minutos.'
       } else if (error.message?.includes('obrigatório')) {
+        errorMessage = error.message
+      } else if (error.message?.includes('Login falhou')) {
         errorMessage = error.message
       } else if (error.message) {
         errorMessage = error.message
@@ -137,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true)
       console.log('Attempting to sign up with:', email)
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -153,13 +159,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw error
       }
 
-      toast.success('Conta criada com sucesso!')
+      if (data.user) {
+        console.log('Sign up successful for user:', data.user.email)
+        toast.success('Conta criada com sucesso!')
+      }
+      
+      return data
     } catch (error: any) {
       console.error('Sign up error:', error)
       
       let errorMessage = 'Erro ao criar conta'
       if (error.message?.includes('User already registered')) {
         errorMessage = 'Este email já está cadastrado'
+      } else if (error.message?.includes('Signup is disabled')) {
+        errorMessage = 'Cadastro está desabilitado no Supabase'
       } else if (error.message) {
         errorMessage = error.message
       }
