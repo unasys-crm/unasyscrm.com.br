@@ -72,12 +72,7 @@ const LoginPage: React.FC = () => {
         toast.error('Erro na autenticação. Tente novamente.')
       }
     } catch (error: any) {
-      // Enhanced error handling for demo user
-      if (data.email === 'demo@unasyscrm.com.br' && error.message?.includes('Invalid login credentials')) {
-        toast.error('Usuário demo não encontrado ou não confirmado. Use o botão "Criar Usuário Demo" primeiro.')
-        setDemoUserStatus('none')
-      }
-      // Other error handling is already done in AuthContext
+      // Error handling is already done in AuthContext
     } finally {
       setLoading(false)
     }
