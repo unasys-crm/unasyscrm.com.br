@@ -41,6 +41,7 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
     }
 
     try {
+      console.log('Fetching companies for user:', user.email)
       // Fetch user profiles with company data
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -52,14 +53,17 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
         .eq('is_active', true)
 
       if (profilesError) {
+        console.error('Error fetching profiles:', profilesError)
         throw profilesError
       }
 
+      console.log('Profiles data:', profilesData)
       const userProfiles = profilesData || []
       const userCompanies = userProfiles
         .map(profile => profile.company)
         .filter(Boolean) as Company[]
 
+      console.log('User companies:', userCompanies)
       setProfiles(userProfiles)
       setCompanies(userCompanies)
 
@@ -75,6 +79,7 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
         selectedCompany = userCompanies[0]
       }
 
+      console.log('Selected company:', selectedCompany)
       setCurrentCompany(selectedCompany || null)
 
       if (selectedCompany) {

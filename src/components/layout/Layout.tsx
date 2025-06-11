@@ -3,10 +3,13 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import { useCompany } from '../../contexts/CompanyContext'
+import { useAuth } from '../../contexts/AuthContext'
 import LoadingSpinner from '../ui/LoadingSpinner'
+import Button from '../ui/Button'
 
 const Layout: React.FC = () => {
-  const { loading, currentCompany } = useCompany()
+  const { loading, currentCompany, refreshCompanies } = useCompany()
+  const { user } = useAuth()
 
   if (loading) {
     return (
@@ -21,11 +24,20 @@ const Layout: React.FC = () => {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Nenhuma empresa encontrada
+            Configurando sua conta...
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Você não possui acesso a nenhuma empresa ou sua conta está pendente de aprovação.
+            Estamos preparando seu acesso ao sistema. Isso pode levar alguns segundos.
           </p>
+          <div className="mt-6 space-y-4">
+            <LoadingSpinner size="md" className="mx-auto" />
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Usuário: {user?.email}
+            </div>
+            <Button onClick={refreshCompanies} variant="secondary">
+              Tentar novamente
+            </Button>
+          </div>
         </div>
       </div>
     )

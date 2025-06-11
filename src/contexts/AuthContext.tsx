@@ -79,6 +79,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       console.log('Sign in successful')
+      
+      // Aguardar um pouco para garantir que a sessão seja estabelecida
+      await new Promise(resolve => setTimeout(resolve, 500))
     } catch (error: any) {
       console.error('Sign in error:', error)
       
