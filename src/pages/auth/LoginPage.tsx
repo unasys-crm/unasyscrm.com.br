@@ -190,20 +190,14 @@ const LoginPage: React.FC = () => {
 
       if (signUpError) {
         if (signUpError.message?.includes('User already registered')) {
-          // User already exists, check status again
-          const newStatus = await checkDemoUserStatus()
-          if (newStatus === 'confirmed') {
-            toast.success('Usuário demo já existe e está funcionando!')
-            handleDemoLogin()
-            
-            // Attempt automatic login
-            const loginSuccess = await attemptDemoLogin()
-            if (!loginSuccess) {
-              toast('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
-            }
-          } else {
-            toast('Usuário demo já existe. Credenciais preenchidas - tente fazer login.')
-            handleDemoLogin()
+          // User already exists, try to log in directly
+          toast.success('Usuário demo já existe! Tentando login automático...')
+          handleDemoLogin()
+          
+          // Attempt automatic login
+          const loginSuccess = await attemptDemoLogin()
+          if (!loginSuccess) {
+            toast('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
           }
           return
         } else if (signUpError.message?.includes('signup is disabled')) {
