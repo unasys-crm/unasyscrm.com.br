@@ -54,19 +54,21 @@ const LoginPage: React.FC = () => {
       console.log('Login form submitted with:', data.email)
       
       // Special handling for demo user login attempts
-      if (data.email === 'demo@unasyscrm.com.br') {
+      if (data.email.trim() === 'demo@unasyscrm.com.br') {
         console.log('Demo user login attempt detected')
         
         // Check demo user status before attempting login
         const status = await checkDemoUserStatus()
         
         if (status === 'none') {
-          toast.error('Usuário demo não existe! Clique em "Criar Usuário Demo" primeiro.')
+          toast.error('❌ Usuário demo não existe!')
+          toast.info('💡 Clique em "Criar Usuário Demo" primeiro')
           setShowTroubleshooting(true)
           return
         } else if (status === 'created') {
-          toast.error('Usuário demo existe mas o email não foi confirmado!')
-          toast.info('Vá para Supabase Dashboard → Authentication → Users e confirme o email.')
+          toast.error('⚠️ Email do usuário demo não confirmado!')
+          toast.info('💡 Vá para Supabase Dashboard → Authentication → Users')
+          toast.info('📧 Confirme o email do usuário demo@unasyscrm.com.br')
           setShowTroubleshooting(true)
           return
         }
@@ -88,11 +90,17 @@ const LoginPage: React.FC = () => {
       }
     } catch (error: any) {
       // Enhanced error handling for demo user
-      if (watchedValues.email === 'demo@unasyscrm.com.br' && 
+      if (watchedValues.email?.trim() === 'demo@unasyscrm.com.br' && 
           error.message?.includes('Invalid login credentials')) {
-        toast.error('Usuário demo não encontrado ou não confirmado!')
-        toast.info('Use o botão "Criar Usuário Demo" ou confirme o email no Supabase Dashboard.')
+        // Don't show additional error - AuthContext already handled it
+        console.log('Demo user login failed - showing troubleshooting')
         setShowTroubleshooting(true)
+        
+        // Auto-check demo user status to provide current info
+        setTimeout(() => {
+          checkDemoUserStatus()
+        }, 1000)
+        return
       }
       console.error('Login error:', error)
     } finally {
@@ -171,7 +179,9 @@ const LoginPage: React.FC = () => {
       if (currentStatus === 'confirmed') {
         toast.success('Usuário demo já existe e está confirmado!')
         handleDemoLogin()
-        toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+        setTimeout(() => {
+          toast.info('✅ Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+        }, 1000)
         return
       }
 
@@ -196,7 +206,9 @@ const LoginPage: React.FC = () => {
           if (status === 'confirmed') {
             toast.success('Usuário demo já existe e está confirmado!')
             handleDemoLogin()
-            toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+            setTimeout(() => {
+              toast.info('✅ Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+            }, 1000)
           } else if (status === 'created') {
             toast.warning('Usuário demo já existe mas precisa de confirmação de email.')
             toast.info('Vá para o Supabase Dashboard > Authentication > Users e confirme o email do usuário demo@unasyscrm.com.br')
@@ -227,7 +239,9 @@ const LoginPage: React.FC = () => {
         if (signUpData.user.email_confirmed_at) {
           setDemoUserStatus('confirmed')
           toast.success('Usuário demo criado e confirmado automaticamente!')
-          toast.info('Credenciais preenchidas - clique em "Entrar" para fazer login.')
+          setTimeout(() => {
+            toast.info('✅ Credenciais preenchidas - clique em "Entrar" para fazer login.')
+          }, 1000)
         } else {
           setDemoUserStatus('created')
           toast.success('Usuário demo criado!')
@@ -442,7 +456,9 @@ const LoginPage: React.FC = () => {
                 variant="primary"
                 onClick={() => {
                   handleDemoLogin()
-                  toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+                  setTimeout(() => {
+                    toast.info('✅ Credenciais preenchidas. Clique em "Entrar" para fazer login.')
+                  }, 500)
                 }}
                 className="w-full text-sm"
               >
