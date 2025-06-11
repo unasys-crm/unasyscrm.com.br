@@ -42,7 +42,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
+      console.log('Auth state changed:', {
+        event,
+        userEmail: session?.user?.email,
+        userId: session?.user?.id,
+        sessionExists: !!session
+      })
       
       if (mounted) {
         setSession(session)
@@ -50,8 +55,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setLoading(false)
 
         if (event === 'SIGNED_IN') {
+          console.log('User signed in successfully:', session?.user?.email)
           toast.success('Login realizado com sucesso!')
         } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out')
           toast.success('Logout realizado com sucesso!')
         }
       }
@@ -68,6 +75,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true)
       console.log('Attempting to sign in with:', email)
       
+      // Verificar se os campos estão preenchidos
+      if (!email || !password) {
+        throw new Error('Email e senha são obrigatórios')
+      }
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -82,6 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Aguardar um pouco para garantir que a sessão seja estabelecida
       await new Promise(resolve => setTimeout(resolve, 500))
+      
     } catch (error: any) {
       console.error('Sign in error:', error)
       
@@ -91,6 +104,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         errorMessage = 'Email ou senha incorretos'
       } else if (error.message?.includes('Email not confirmed')) {
         errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
+      } else if (error.message?.includes('Email rate limit exceeded')) {
+        errorMessage = 'Muitas tentativas de login. Aguarde alguns minutos.'
+      } else if (error.message?.includes('obrigatórios')) {
+        errorMessage = error.message
       } else if (error.message) {
         errorMessage = error.message
       }

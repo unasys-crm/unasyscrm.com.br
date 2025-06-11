@@ -10,6 +10,8 @@ interface PublicRouteProps {
 const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
   const { user, loading } = useAuth()
 
+  console.log('PublicRoute - User:', user?.email, 'Loading:', loading)
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -19,9 +21,11 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
   }
 
   if (user) {
+    console.log('PublicRoute - User authenticated, redirecting to dashboard')
     return <Navigate to="/dashboard" replace />
   }
 
+  console.log('PublicRoute - No user, rendering children')
   return <>{children}</>
 }
 

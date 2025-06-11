@@ -36,12 +36,20 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
 
   const fetchCompanies = async () => {
     if (!user) {
+      console.log('CompanyContext: No user, skipping company fetch')
+      setCurrentCompany(null)
+      setCompanies([])
+      setProfiles([])
       setLoading(false)
       return
     }
 
     try {
-      console.log('Fetching companies for user:', user.email)
+      console.log('CompanyContext: Fetching companies for user:', {
+        email: user.email,
+        id: user.id
+      })
+      
       // Fetch user profiles with company data
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -53,17 +61,64 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
         .eq('is_active', true)
 
       if (profilesError) {
-        console.error('Error fetching profiles:', profilesError)
-        throw profilesError
+        console.error('CompanyContext: Error fetching profiles:', profilesError)
+        
+        // Se não conseguiu buscar perfis, tentar criar um automaticamente
+        console.log('CompanyContext: Attempting to create profile for user')
+        
+        // Buscar empresa demo
+        const { data: demoCompany } = await supabase
+          .from('companies')
+          .select('id')
+          .eq('email', 'demo@unasyscrm.com.br')
+          .single()
+        
+        if (demoCompany) {
+          const { error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              company_id: demoCompany.id,
+              role: 'admin',
+              permissions: {
+                clients: { create: true, read: true, update: true, delete: true },
+                proposals: { create: true, read: true, update: true, delete: true },
+                tasks: { create: true, read: true, update: true, delete: true },
+                reports: { create: true, read: true, update: true, delete: false }
+              },
+              is_active: true
+            })
+          
+          if (!createError) {
+            console.log('CompanyContext: Profile created, retrying fetch')
+            // Tentar buscar novamente
+            const { data: retryData } = await supabase
+              .from('profiles')
+              .select(`
+                *,
+                company:companies(*)
+              `)
+              .eq('user_id', user.id)
+              .eq('is_active', true)
+            
+            if (retryData) {
+              profilesData = retryData
+            }
+          }
+        }
+        
+        if (!profilesData) {
+          throw profilesError
+        }
       }
 
-      console.log('Profiles data:', profilesData)
+      console.log('CompanyContext: Profiles data:', profilesData)
       const userProfiles = profilesData || []
       const userCompanies = userProfiles
         .map(profile => profile.company)
         .filter(Boolean) as Company[]
 
-      console.log('User companies:', userCompanies)
+      console.log('CompanyContext: User companies:', userCompanies)
       setProfiles(userProfiles)
       setCompanies(userCompanies)
 
@@ -73,20 +128,22 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
 
       if (savedCompanyId) {
         selectedCompany = userCompanies.find(c => c.id === savedCompanyId)
+        console.log('CompanyContext: Found saved company:', selectedCompany?.name)
       }
 
       if (!selectedCompany && userCompanies.length > 0) {
         selectedCompany = userCompanies[0]
+        console.log('CompanyContext: Using first available company:', selectedCompany?.name)
       }
 
-      console.log('Selected company:', selectedCompany)
+      console.log('CompanyContext: Final selected company:', selectedCompany)
       setCurrentCompany(selectedCompany || null)
 
       if (selectedCompany) {
         localStorage.setItem('currentCompanyId', selectedCompany.id)
       }
     } catch (error: any) {
-      console.error('Error fetching companies:', error)
+      console.error('CompanyContext: Error fetching companies:', error)
       toast.error('Erro ao carregar empresas')
     } finally {
       setLoading(false)

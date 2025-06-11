@@ -5,8 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import toast from 'react-hot-toast'
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -21,6 +23,7 @@ const LoginPage: React.FC = () => {
   const { signIn } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [testingConnection, setTestingConnection] = useState(false)
 
   const from = location.state?.from?.pathname || '/dashboard'
 
@@ -37,8 +40,27 @@ const LoginPage: React.FC = () => {
     try {
       setLoading(true)
       console.log('Login form submitted with:', data.email)
+      
+      // Verificar se os campos estão preenchidos
+      if (!data.email || !data.password) {
+        toast.error('Por favor, preencha todos os campos')
+        return
+      }
+      
       await signIn(data.email, data.password)
-      navigate(from, { replace: true })
+      
+      // Aguardar um pouco para garantir que a autenticação seja processada
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Verificar se realmente está autenticado antes de navegar
+      const { data: session } = await supabase.auth.getSession()
+      if (session.session) {
+        console.log('Login successful, navigating to:', from)
+        navigate(from, { replace: true })
+      } else {
+        console.error('Login failed: no session found')
+        toast.error('Erro na autenticação. Tente novamente.')
+      }
     } catch (error) {
       // Error is handled by the AuthContext
       console.error('Login failed:', error)
@@ -51,6 +73,25 @@ const LoginPage: React.FC = () => {
   const handleDemoLogin = () => {
     setValue('email', 'demo@unasyscrm.com.br')
     setValue('password', 'demo123456')
+  }
+
+  // Test connection function
+  const testConnection = async () => {
+    setTestingConnection(true)
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) {
+        toast.error(`Erro de conexão: ${error.message}`)
+      } else {
+        toast.success('Conexão com Supabase OK!')
+        console.log('Connection test result:', data)
+      }
+    } catch (error: any) {
+      toast.error(`Erro de conexão: ${error.message}`)
+      console.error('Connection test error:', error)
+    } finally {
+      setTestingConnection(false)
+    }
   }
 
   return (
@@ -77,16 +118,29 @@ const LoginPage: React.FC = () => {
         {/* Demo Login Button */}
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
           <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-            Para testar o sistema, use as credenciais de demonstração:
+            <strong>Credenciais de demonstração:</strong><br />
+            Email: demo@unasyscrm.com.br<br />
+            Senha: demo123456
           </p>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleDemoLogin}
-            className="w-full"
-          >
-            Preencher dados de demonstração
-          </Button>
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleDemoLogin}
+              className="w-full"
+            >
+              Preencher dados de demonstração
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={testConnection}
+              loading={testingConnection}
+              className="w-full text-xs"
+            >
+              Testar Conexão
+            </Button>
+          </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
