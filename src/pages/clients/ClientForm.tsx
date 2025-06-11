@@ -35,7 +35,6 @@ const ClientForm: React.FC = () => {
   const { user } = useAuth()
   const { currentCompany } = useCompany()
   const [loading, setLoading] = useState(false)
-  const [client, setClient] = useState<Client | null>(null)
 
   const isEditing = !!id
 
@@ -72,7 +71,6 @@ const ClientForm: React.FC = () => {
 
       if (error) throw error
 
-      setClient(data)
       reset({
         type: data.type,
         name: data.name,
