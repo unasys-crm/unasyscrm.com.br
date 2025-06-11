@@ -88,6 +88,21 @@ const LoginPage: React.FC = () => {
   const createDemoUser = async () => {
     setCreatingDemoUser(true)
     try {
+      // First, try to sign in with demo credentials to check if user already exists
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: 'demo@unasyscrm.com.br',
+        password: 'demo123456',
+      })
+
+      if (signInData.user && !signInError) {
+        // Demo user already exists and can be logged into
+        toast.success('Usuário demo já existe! Você pode fazer login normalmente.')
+        // Auto-fill the form
+        handleDemoLogin()
+        return
+      }
+
+      // If sign-in failed, try to create the demo user
       const { data, error } = await supabase.auth.signUp({
         email: 'demo@unasyscrm.com.br',
         password: 'demo123456',
