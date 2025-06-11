@@ -111,12 +111,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error.message?.includes('Invalid login credentials')) {
         if (email === 'demo@unasyscrm.com.br') {
-          errorMessage = 'Usuário demo não encontrado. Use o botão "Criar Usuário Demo" para configurá-lo.'
+          errorMessage = 'Usuário demo não encontrado ou não confirmado. Use o botão "Criar Usuário Demo" para configurá-lo ou verifique se o email foi confirmado.'
         } else {
           errorMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.'
         }
       } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
+        errorMessage = 'Email não confirmado. Verifique sua caixa de entrada ou use o usuário demo.'
       } else if (error.message?.includes('Email rate limit exceeded')) {
         errorMessage = 'Muitas tentativas de login. Aguarde alguns minutos.'
       } else if (error.message?.includes('obrigatório')) {
