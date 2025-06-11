@@ -1,11 +1,4 @@
-export interface User {
-  id: string
-  email: string
-  name?: string
-  avatar_url?: string
-  created_at: string
-  updated_at: string
-}
+import { User, Session } from '@supabase/supabase-js'
 
 export interface Company {
   id: string
@@ -185,3 +178,6 @@ export interface AuthContextType {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }
+
+// Re-export Supabase types for convenience
+export type { User, Session }
