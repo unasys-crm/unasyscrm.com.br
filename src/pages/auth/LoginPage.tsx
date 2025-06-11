@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn, AlertCircle, UserPlus, CheckCircle, RefreshCw } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle, UserPlus, CheckCircle, RefreshCw, Database } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
@@ -27,6 +27,7 @@ const LoginPage: React.FC = () => {
   const [creatingDemoUser, setCreatingDemoUser] = useState(false)
   const [checkingDemoUser, setCheckingDemoUser] = useState(false)
   const [demoUserStatus, setDemoUserStatus] = useState<'none' | 'created' | 'confirmed' | 'checking'>('none')
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'error'>('unknown')
 
   const from = location.state?.from?.pathname || '/dashboard'
 
@@ -51,18 +52,12 @@ const LoginPage: React.FC = () => {
       setLoading(true)
       console.log('Login form submitted with:', data.email)
       
-      // Special handling for demo user
-      if (data.email === 'demo@unasyscrm.com.br' && demoUserStatus === 'none') {
-        toast.error('Usuário demo não encontrado. Clique em "Criar Usuário Demo" primeiro.')
-        return
-      }
-      
       await signIn(data.email, data.password)
       
-      // Aguardar um pouco para garantir que a autenticação seja processada
+      // Wait a bit to ensure authentication is processed
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Verificar se realmente está autenticado antes de navegar
+      // Verify authentication before navigating
       const { data: session } = await supabase.auth.getSession()
       if (session.session) {
         console.log('Login successful, navigating to:', from)
@@ -73,6 +68,7 @@ const LoginPage: React.FC = () => {
       }
     } catch (error: any) {
       // Error handling is already done in AuthContext
+      console.error('Login error:', error)
     } finally {
       setLoading(false)
     }
@@ -100,7 +96,7 @@ const LoginPage: React.FC = () => {
     try {
       console.log('Checking demo user status...')
       
-      // First, try to check if user exists by attempting sign in
+      // Try to sign in to check if user exists and is confirmed
       const { data, error } = await supabase.auth.signInWithPassword({
         email: 'demo@unasyscrm.com.br',
         password: 'demo123456',
@@ -118,7 +114,7 @@ const LoginPage: React.FC = () => {
         console.log('Demo user exists but email not confirmed')
         return 'created'
       } else if (error?.message?.includes('Invalid login credentials')) {
-        // User doesn't exist or wrong credentials
+        // User doesn't exist
         setDemoUserStatus('none')
         console.log('Demo user does not exist')
         return 'none'
@@ -149,22 +145,6 @@ const LoginPage: React.FC = () => {
       if (currentStatus === 'confirmed') {
         toast.success('Usuário demo já existe e está confirmado!')
         handleDemoLogin()
-        
-        // Try automatic login
-        try {
-          await signIn('demo@unasyscrm.com.br', 'demo123456')
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          const { data: session } = await supabase.auth.getSession()
-          if (session.session) {
-            toast.success('Login automático realizado com sucesso!')
-            navigate(from, { replace: true })
-            return
-          }
-        } catch (error) {
-          console.log('Automatic login failed, credentials filled for manual login')
-        }
-        
         toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
         return
       }
@@ -192,16 +172,17 @@ const LoginPage: React.FC = () => {
             handleDemoLogin()
             toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
           } else if (status === 'created') {
-            toast.info('Usuário demo já existe mas pode precisar de confirmação de email.')
+            toast.warning('Usuário demo já existe mas precisa de confirmação de email.')
+            toast.info('Vá para o Supabase Dashboard > Authentication > Users e confirme o email do usuário demo@unasyscrm.com.br')
             handleDemoLogin()
-            toast.info('Credenciais preenchidas. Tente fazer login ou verifique se a confirmação de email está desabilitada no Supabase.')
           } else {
             toast.info('Usuário demo já existe. Credenciais preenchidas para login.')
             handleDemoLogin()
           }
           return
         } else if (signUpError.message?.includes('Signup is disabled')) {
-          toast.error('Cadastro está desabilitado no Supabase. Verifique as configurações do projeto em Authentication > Settings.')
+          toast.error('Cadastro está desabilitado no Supabase.')
+          toast.info('Vá para Supabase Dashboard > Authentication > Settings e habilite "Enable email confirmations" ou desabilite "Confirm email" para testes.')
           return
         } else {
           throw signUpError
@@ -218,28 +199,12 @@ const LoginPage: React.FC = () => {
         if (signUpData.user.email_confirmed_at) {
           setDemoUserStatus('confirmed')
           toast.success('Usuário demo criado e confirmado automaticamente!')
-          
-          // Try automatic login
-          try {
-            await new Promise(resolve => setTimeout(resolve, 2000)) // Wait for user to be fully created
-            await signIn('demo@unasyscrm.com.br', 'demo123456')
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            
-            const { data: session } = await supabase.auth.getSession()
-            if (session.session) {
-              toast.success('Login automático realizado com sucesso!')
-              navigate(from, { replace: true })
-              return
-            }
-          } catch (error) {
-            console.log('Automatic login failed after user creation')
-          }
-          
-          toast.info('Usuário criado! Credenciais preenchidas - clique em "Entrar" para fazer login.')
+          toast.info('Credenciais preenchidas - clique em "Entrar" para fazer login.')
         } else {
           setDemoUserStatus('created')
-          toast.success('Usuário demo criado! Se a confirmação de email estiver habilitada, verifique o email.')
-          toast.info('Credenciais preenchidas. Se a confirmação de email estiver desabilitada, clique em "Entrar".')
+          toast.success('Usuário demo criado!')
+          toast.warning('Email precisa ser confirmado. Vá para Supabase Dashboard > Authentication > Users e confirme o email.')
+          toast.info('Ou desabilite "Confirm email" em Authentication > Settings para testes.')
         }
       } else {
         throw new Error('Falha ao criar usuário demo - nenhum usuário retornado')
@@ -250,7 +215,7 @@ const LoginPage: React.FC = () => {
       let errorMessage = 'Erro ao criar usuário demo'
       
       if (error.message?.includes('Signup is disabled')) {
-        errorMessage = 'Cadastro está desabilitado no Supabase. Vá em Authentication > Settings e habilite "Enable email confirmations".'
+        errorMessage = 'Cadastro desabilitado. Habilite em Supabase Dashboard > Authentication > Settings.'
       } else if (error.message?.includes('Email rate limit exceeded')) {
         errorMessage = 'Limite de tentativas excedido. Aguarde alguns minutos.'
       } else if (error.message?.includes('Invalid API key')) {
@@ -265,46 +230,71 @@ const LoginPage: React.FC = () => {
     }
   }
 
-  // Test connection function
+  // Test connection function with enhanced diagnostics
   const testConnection = async () => {
     setTestingConnection(true)
     try {
       console.log('Testing Supabase connection...')
       
+      // Check environment variables
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      
+      if (!supabaseUrl || !supabaseKey) {
+        toast.error('Variáveis de ambiente do Supabase não configuradas!')
+        setConnectionStatus('error')
+        return
+      }
+      
       // Test basic connection
       const { data, error } = await supabase.auth.getSession()
       if (error) {
         toast.error(`Erro de conexão: ${error.message}`)
+        setConnectionStatus('error')
         return
       }
       
       // Test if we can reach the auth endpoint
       try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/settings`, {
+        const response = await fetch(`${supabaseUrl}/auth/v1/settings`, {
           headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
           }
         })
         
         if (response.ok) {
+          const settings = await response.json()
           toast.success('Conexão com Supabase OK!')
-          console.log('Connection test successful')
+          console.log('Connection test successful', settings)
+          setConnectionStatus('connected')
           
           // Check demo user status after successful connection
           const status = await checkDemoUserStatus()
-          toast.info(`Status do usuário demo: ${status === 'confirmed' ? 'Confirmado' : status === 'created' ? 'Criado (pode precisar confirmar)' : 'Não existe'}`)
+          const statusText = status === 'confirmed' ? 'Confirmado ✅' : 
+                           status === 'created' ? 'Criado (precisa confirmar) ⚠️' : 
+                           'Não existe ❌'
+          toast.info(`Status do usuário demo: ${statusText}`)
+          
+          // Show additional info about email confirmation settings
+          if (settings.external_email_enabled === false) {
+            toast.info('Confirmação de email está desabilitada - usuários são auto-confirmados')
+          }
         } else {
-          toast.error(`Erro na API do Supabase: ${response.status}`)
+          const errorText = await response.text()
+          toast.error(`Erro na API do Supabase: ${response.status} - ${errorText}`)
+          setConnectionStatus('error')
         }
       } catch (fetchError) {
         toast.error('Erro ao conectar com a API do Supabase')
         console.error('Fetch error:', fetchError)
+        setConnectionStatus('error')
       }
       
     } catch (error: any) {
       toast.error(`Erro de conexão: ${error.message}`)
       console.error('Connection test error:', error)
+      setConnectionStatus('error')
     } finally {
       setTestingConnection(false)
     }
@@ -312,7 +302,12 @@ const LoginPage: React.FC = () => {
 
   // Check demo user status on component mount
   React.useEffect(() => {
-    checkDemoUserStatus()
+    // Small delay to avoid overwhelming the API
+    const timer = setTimeout(() => {
+      checkDemoUserStatus()
+    }, 1000)
+    
+    return () => clearTimeout(timer)
   }, [])
 
   const getDemoStatusColor = () => {
@@ -326,10 +321,18 @@ const LoginPage: React.FC = () => {
 
   const getDemoStatusText = () => {
     switch (demoUserStatus) {
-      case 'confirmed': return 'Usuário confirmado e pronto para login'
-      case 'created': return 'Usuário existe (pode precisar confirmar email)'
+      case 'confirmed': return 'Usuário confirmado e pronto para login ✅'
+      case 'created': return 'Usuário existe (precisa confirmar email) ⚠️'
       case 'checking': return 'Verificando status...'
-      default: return 'Usuário não encontrado - precisa ser criado'
+      default: return 'Usuário não encontrado - precisa ser criado ❌'
+    }
+  }
+
+  const getConnectionStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'text-green-600'
+      case 'error': return 'text-red-600'
+      default: return 'text-gray-600'
     }
   }
 
@@ -353,6 +356,14 @@ const LoginPage: React.FC = () => {
             </Link>
           </p>
         </div>
+
+        {/* Connection Status */}
+        {connectionStatus !== 'unknown' && (
+          <div className={`text-center text-sm ${getConnectionStatusColor()}`}>
+            <Database className="inline h-4 w-4 mr-1" />
+            {connectionStatus === 'connected' ? 'Conectado ao Supabase' : 'Erro de conexão'}
+          </div>
+        )}
 
         {/* Demo Login Section */}
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -388,29 +399,14 @@ const LoginPage: React.FC = () => {
               <Button
                 type="button"
                 variant="primary"
-                onClick={async () => {
+                onClick={() => {
                   handleDemoLogin()
-                  // Try automatic login
-                  try {
-                    await signIn('demo@unasyscrm.com.br', 'demo123456')
-                    await new Promise(resolve => setTimeout(resolve, 1000))
-                    
-                    const { data: session } = await supabase.auth.getSession()
-                    if (session.session) {
-                      toast.success('Login automático realizado com sucesso!')
-                      navigate(from, { replace: true })
-                      return
-                    }
-                  } catch (error) {
-                    console.log('Automatic login failed, credentials filled for manual login')
-                  }
-                  
                   toast.info('Credenciais preenchidas. Clique em "Entrar" para fazer login.')
                 }}
                 className="w-full text-sm"
               >
                 <LogIn className="mr-2 h-4 w-4" />
-                Entrar como Demo
+                Preencher Credenciais Demo
               </Button>
             ) : (
               <Button
@@ -453,9 +449,30 @@ const LoginPage: React.FC = () => {
               loading={testingConnection}
               className="w-full text-xs"
             >
+              <Database className="mr-1 h-3 w-3" />
               Testar Conexão Supabase
             </Button>
           </div>
+
+          {/* Troubleshooting Tips */}
+          {demoUserStatus === 'created' && (
+            <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs">
+              <p className="font-medium text-yellow-800 dark:text-yellow-200">💡 Dica:</p>
+              <p className="text-yellow-700 dark:text-yellow-300">
+                Vá para Supabase Dashboard → Authentication → Users e confirme o email do usuário demo, 
+                ou desabilite "Confirm email" em Authentication → Settings.
+              </p>
+            </div>
+          )}
+
+          {demoUserStatus === 'none' && connectionStatus === 'connected' && (
+            <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs">
+              <p className="font-medium text-red-800 dark:text-red-200">❌ Usuário não encontrado</p>
+              <p className="text-red-700 dark:text-red-300">
+                Clique em "Criar Usuário Demo" para criar o usuário de demonstração.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Debug info */}
@@ -465,6 +482,7 @@ const LoginPage: React.FC = () => {
             <p>Email: "{watchedValues.email}"</p>
             <p>Password: "{watchedValues.password}"</p>
             <p>Demo Status: {demoUserStatus}</p>
+            <p>Connection: {connectionStatus}</p>
             <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL}</p>
             <p>Anon Key Present: {!!import.meta.env.VITE_SUPABASE_ANON_KEY}</p>
             {Object.keys(errors).length > 0 && <p>Errors: {JSON.stringify(errors)}</p>}
